@@ -100,6 +100,12 @@ behavior of the analysis.
 Dictionary of process samples to be run over. Each process can have several
 parameters:
 .br
+Grid submission uses
+\fBAnalysis.samples\fR
+as the modern attribute name and accepts
+\fBAnalysis.process_list\fR
+as a deprecated compatibility alias.
+.br
 \fIfraction\fR
 .in +4
 The analysis will run over reduced number of input files roughly corresponding
@@ -111,6 +117,9 @@ Default value: 1 (full process sample)
 .in +4
 Specifies the location of the process different from the globally set one\&.
 This overrides both prod_tag and input_dir attributes of the analysis script\&.
+For grid XRootD submission, use the preferred spelling
+\fIinput-dir\fR
+and provide an EOS path or XRootD directory URL\&.
 .br
 Default value: None
 .in -4
@@ -119,13 +128,20 @@ Default value: None
 Specifies the stem for the output file(s)\&. The stem will be used to create
 output directory if there is more than one chunk or as a filename if there is
 only one\&.
+For grid submission, use the preferred spelling
+\fIoutput-stem\fR;
+the stem is incorporated into each deterministic job output filename\&.
 .br
 Default value: output\&.root
 .in -4
 \fIchunks\fR
 .in +4
 The analysis can be split into several output chunks (useful on distributed
-systems)\&.
+systems)\&. For grid submission this value can be overridden on the command
+line with either
+\fB\-\-n\-chunks\fR
+or
+\fB\-\-files\-per\-job\fR\&.
 .br
 Default value: 1
 .in -4
@@ -138,6 +154,12 @@ Default value: None (no striding)
 \fIn-events-max\fR
 .in +4
 Limits the maximum number of events to process for the sample\&.
+Grid submission ignores this value with a warning because event limits do not
+compose reliably with file-based jobs\&. A user may instead forward
+\fB\-\-nevents\fR
+after the
+\fB\-\-\fR
+separator to apply that limit independently to every planned job\&.
 .br
 Default value: None (no limit)
 .TP
@@ -154,6 +176,13 @@ Specifies the output ROOT file format. Accepted values are \fBttree\fR and \fBrn
 .br
 Default value: ttree
 .TP
+\fBinput_dir\fR (mandatory for grid XRootD input unless set per sample)
+Global directory containing sample subdirectories\&.
+For grid XRootD submission this must be an EOS path or XRootD directory URL;
+a sample-level
+\fIinput-dir\fR
+overrides this value\&.
+.TP
 \fBanalysis_name\fR (optional)
 Optional name for the analysis
 .br
@@ -165,8 +194,10 @@ threads available on the machine specify -1.
 .br
 Default value: 1
 .TP
-\fBinlude_paths\fR (optional)
-Specify additional include header files to be JIT compiled.
+\fBinclude_paths\fR (optional)
+Specify additional local header or analysis-helper files to be JIT compiled\&.
+During grid submission, relative paths are resolved below the analysis-script
+directory and shipped to every worker through the input sandbox\&.
 .br
 Default value: None
 .TP
@@ -237,7 +268,7 @@ sample.
 This section is under construction. You are invited to help :)
 
 .SH SEE ALSO
-fccanalysis(1), fccanalysis-run(1)
+fccanalysis(1), fccanalysis-run(1), fccanalysis-submit(1)
 
 .SH BUGS
 Many

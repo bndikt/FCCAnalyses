@@ -11,8 +11,8 @@
 [<\fIargs\fR>]
 .SH DESCRIPTION
 .B fccanalysis
-is the manager program for the FCC analysis, which can build,
-run or submit analysis to the batch\&.
+is the manager program for FCC analyses, which can build and run analyses or
+submit them to distributed computing systems\&.
 .SH OPTIONS
 .TP
 .BR \-h ", " \-\-help
@@ -42,6 +42,9 @@ Pin analysis to the currently sourced version of the Key4hep stack\&.
 .TP
 .B fccanalysis-run
 Runs the analysis script provided\&.
+.TP
+.B fccanalysis-submit
+Submits the analysis through CERN HTCondor or the DIRAC-managed grid\&.
 .TP
 .B fccanalysis-final
 Runs the finalization analysis script provided\&.
