@@ -11,13 +11,19 @@ import logging
 import math
 import os
 from pathlib import Path
-import re
 import subprocess
 import tarfile
 import tempfile
 from typing import Any, Optional
 
-from anascript import validate_sample_list
+from anascript import get_sample_input_source, validate_sample_list
+from input_resolver import (
+    InputResolutionError,
+    normalize_input_path,
+    read_input_file_list,
+    resolve_directory,
+    resolve_inputs,
+)
 
 from software_payload import (
     SoftwarePayloadError,
@@ -158,20 +164,15 @@ def _resolve_analysis_samples(
 
     resolved_samples = []
     for sample_name, sample in samples.items():
-        sample_input_dir = sample['input-dir']
-        if sample_input_dir is None:
-            if input_dir is None:
-                raise GridSubmissionError(
-                    f'Sample {sample_name!r} has no input-dir and '
-                    'Analysis.input_dir is unset.'
-                )
-            sample_input_dir = _join_input_directory(input_dir, sample_name)
-        input_urls = _discover_xrootd_root_files(sample_input_dir)
-        if not input_urls:
-            raise GridSubmissionError(
-                f'No immediate .root files found for sample {sample_name!r} '
-                f'in {sample_input_dir}.'
+        input_source, input_value = get_sample_input_source(
+            sample, input_dir, None
+        )
+        try:
+            input_urls = _resolve_grid_sample_inputs(
+                input_source, input_value, sample_name
             )
+        except InputResolutionError as error:
+            raise GridSubmissionError(str(error)) from error
         fraction = sample['fraction']
         if fraction < 1.0:
             input_urls = _apply_fraction(input_urls, fraction, sample_name)
@@ -206,6 +207,41 @@ def _resolve_analysis_samples(
             )
         )
     return tuple(resolved_samples)
+
+
+def _resolve_grid_sample_inputs(
+    input_source: Optional[str],
+    input_value: Any,
+    sample_name: str,
+) -> list[str]:
+    '''Resolve one sample source and enforce grid-accessible inputs.'''
+    if input_source == 'input-files':
+        input_urls = [normalize_input_path(path) for path in input_value]
+        _require_grid_urls(input_urls)
+        return resolve_inputs(input_urls)
+    elif input_source == 'input-file-list':
+        input_urls = read_input_file_list(input_value)
+    elif input_source in ('sample-input-dir', 'global-input-dir'):
+        directory = normalize_input_path(input_value)
+        _require_grid_urls([directory])
+        if input_source == 'global-input-dir':
+            directory = directory.rstrip('/') + '/' + sample_name
+        return resolve_directory(directory)
+    else:
+        raise GridSubmissionError(
+            f'Sample {sample_name!r} has no input source. '
+            'Set a per-sample source or Analysis.input_dir.'
+        )
+
+    _require_grid_urls(input_urls)
+    return input_urls
+
+
+def _require_grid_urls(input_urls: list[str]) -> None:
+    if any(not url.startswith('root://') for url in input_urls):
+        raise GridSubmissionError(
+            'Grid submission requires mounted EOS paths or root:// URLs.'
+        )
 
 
 def _create_analysis_include_archive(
@@ -336,74 +372,6 @@ def _warn_ignored_sample_event_limits(analysis_class: Any) -> None:
                 'every planned job, pass --nevents after --.',
                 sample_name,
             )
-
-
-def _join_input_directory(input_dir: str, sample_name: str) -> str:
-    if input_dir.startswith('root://'):
-        return input_dir.rstrip('/') + '/' + sample_name
-    return os.path.join(input_dir, sample_name)
-
-
-def _discover_xrootd_root_files(directory: str) -> list[str]:
-    '''List immediate ROOT files in an EOS/XRootD directory through xrdfs.'''
-    host, remote_directory = _xrootd_location(directory)
-    try:
-        result = subprocess.run(
-            ['xrdfs', host, 'ls', '-l', remote_directory],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError as error:
-        raise GridSubmissionError(
-            'xrdfs is unavailable; source a Key4hep environment with XRootD.'
-        ) from error
-    except subprocess.CalledProcessError as error:
-        message = error.stderr.strip() or error.stdout.strip() or str(error)
-        raise GridSubmissionError(
-            f'Cannot list XRootD directory {directory} through {host}: {message}'
-        ) from error
-
-    files = []
-    for line in result.stdout.splitlines():
-        entry = _parse_xrdfs_listing(line)
-        if entry is None:
-            continue
-        entry_type, path = entry
-        if entry_type == 'd' or not path.endswith('.root'):
-            continue
-        files.append(f'root://{host}//{path.lstrip("/")}')
-    return sorted(set(files))
-
-
-def _xrootd_location(directory: str) -> tuple[str, str]:
-    '''Turn an EOS path or root URL into an xrdfs host/path pair.'''
-    if directory.startswith('root://'):
-        match = re.fullmatch(r'root://([^/]+)(/.*)', directory)
-        if match is None:
-            raise GridSubmissionError(f'Invalid XRootD directory URL: {directory}')
-        return match.group(1), '/' + match.group(2).lstrip('/')
-    if not directory.startswith('/eos/'):
-        raise GridSubmissionError(
-            f'Input directory must be an /eos/... path or root:// URL: {directory}'
-        )
-    if directory.startswith('/eos/experiment/'):
-        return 'eospublic.cern.ch', directory
-    if directory.startswith('/eos/user/'):
-        return 'eosuser.cern.ch', directory
-    raise GridSubmissionError(
-        f'Cannot infer an EOS redirector for input directory: {directory}'
-    )
-
-
-def _parse_xrdfs_listing(line: str) -> Optional[tuple[str, str]]:
-    '''Extract the entry type and path from one ``xrdfs ls -l`` line.'''
-    parts = line.split()
-    if not parts:
-        return None
-    if len(parts) >= 2 and parts[0][0:1] in {'-', 'd'}:
-        return parts[0][0], parts[-1]
-    return '-', parts[-1]
 
 
 def _apply_fraction(
