@@ -18,6 +18,7 @@ sys.path.insert(0, str(REPOSITORY_ROOT / 'python'))
 from grid_submission import (
     GridSubmissionError,
     _create_analysis_include_archive,
+    _resolve_grid_sample_inputs,
     create_grid_submission_request,
     submit_grid_submission,
 )
@@ -91,10 +92,13 @@ class GridSubmissionFrontendTest(unittest.TestCase):
                 self.grid_arguments(self.write_lfn_input(root)),
             )
 
-            request = create_grid_submission_request(
-                args,
-                key4hep_setup=str(key4hep_setup),
-            )
+            with patch('grid_submission._resolve_analysis_samples') as resolve:
+                request = create_grid_submission_request(
+                    args,
+                    key4hep_setup=str(key4hep_setup),
+                )
+
+        resolve.assert_not_called()
 
         self.assertEqual(request.analysis_script, str(analysis_script.resolve()))
         self.assertEqual(request.input_mode, 'dirac-lfn')
@@ -181,7 +185,7 @@ class GridSubmissionFrontendTest(unittest.TestCase):
                     'root://eospublic.cern.ch//eos/experiment/fcc/test/background/a.root',
                 ]
 
-            with patch('grid_submission._discover_xrootd_root_files', side_effect=discover):
+            with patch('grid_submission.resolve_directory', side_effect=discover):
                 with self.assertLogs('FCCAnalyses.grid_submission', 'WARNING') as logs:
                     request = create_grid_submission_request(
                         args,
@@ -207,6 +211,55 @@ class GridSubmissionFrontendTest(unittest.TestCase):
         self.assertEqual(len(logs.output), 2)
         self.assertTrue(all('Ignoring sample-level n-events-max' in line
                             for line in logs.output))
+
+    def test_uses_per_sample_files_without_global_input_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            analysis_script = root / 'analysis.py'
+            key4hep_setup = root / 'setup.sh'
+            analysis_script.write_text(
+                'class Analysis:\n'
+                '    def __init__(self, arguments):\n'
+                '        self.samples = {\n'
+                '            "signal": {"input-files": [\n'
+                '                "root://storage.example.org//data/a.root"\n'
+                '            ]}\n'
+                '        }\n',
+                encoding='utf-8',
+            )
+            key4hep_setup.touch()
+            args = self.parse_grid_arguments(
+                str(analysis_script),
+                ['--output', 'analysis.root', '--output-dir', 'analysis/results'],
+            )
+            with patch(
+                'grid_submission.resolve_inputs',
+                return_value=['root://storage.example.org//data/a.root'],
+            ) as resolve:
+                request = create_grid_submission_request(
+                    args,
+                    key4hep_setup=str(key4hep_setup),
+                )
+
+        resolve.assert_called_once_with(
+            ['root://storage.example.org//data/a.root']
+        )
+        self.assertEqual(
+            request.samples[0].input_urls,
+            ('root://storage.example.org//data/a.root',),
+        )
+
+    def test_rejects_local_sample_directory_before_discovery(self) -> None:
+        with patch('grid_submission.resolve_inputs') as resolve:
+            with self.assertRaisesRegex(
+                GridSubmissionError,
+                'requires mounted EOS paths or root:// URLs',
+            ):
+                _resolve_grid_sample_inputs(
+                    'input-files', ['/local/input'], 'signal'
+                )
+
+        resolve.assert_not_called()
 
     def test_stages_optional_analysis_includes_in_lfn_mode(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

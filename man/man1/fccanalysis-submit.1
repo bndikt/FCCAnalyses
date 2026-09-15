@@ -83,9 +83,22 @@ passed directly to the analysis script\&.
 This is the default grid input mode.
 The backend reads
 .B Analysis.samples
-and the global or per-sample input directories, lists their immediate ROOT
-files using XRootD, applies any sample fraction, and divides the resulting file
-URLs into jobs. Workers stream these files directly over XRootD.
+and resolves one per-sample input source (\fIinput-dir\fR,
+\fIinput-files\fR, or \fIinput-file-list\fR), falling back to the global
+\fBAnalysis.input_dir\fR when a sample has no source. Directories are listed
+through XRootD and contribute immediate \fI.root\fR files only. The backend
+then applies any sample fraction and divides the resulting file URLs into jobs.
+Workers stream these files directly over XRootD.
+
+Mounted \fI/eos/experiment/fcc/...\fR and \fI/eos/user/...\fR paths are
+converted to CERN XRootD URLs. Other EOS namespaces and non-CERN storage must
+use an explicit URL, for example
+\fBroot://storage.example.org//data/events.root\fR. URLs ending in
+\fI.root\fR name files; other URLs are treated as a directories.
+
+Grid jobs receive XRootD URLs, not files from the submitting machine. Local
+paths are therefore rejected in XRootD input mode. This does not apply to
+\fB--lfn-input\fR, which uses DIRAC staging instead.
 
 .SS DIRAC LFN input
 Supplying
