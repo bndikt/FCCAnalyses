@@ -253,12 +253,13 @@ class GridSubmissionFrontendTest(unittest.TestCase):
         with patch('grid_submission.resolve_inputs') as resolve:
             with self.assertRaisesRegex(
                 GridSubmissionError,
-                'requires mounted EOS paths or root:// URLs',
-            ):
+                'In XRootD input mode, grid input files and directories',
+            ) as error:
                 _resolve_grid_sample_inputs(
                     'input-files', ['/local/input'], 'signal'
                 )
 
+        self.assertIn('--lfn-input', str(error.exception))
         resolve.assert_not_called()
 
     def test_stages_optional_analysis_includes_in_lfn_mode(self) -> None:
