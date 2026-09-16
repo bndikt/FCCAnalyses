@@ -44,11 +44,11 @@ class InputResolverTest(unittest.TestCase):
     @patch('input_resolver.subprocess.run')
     def test_remote_directory(self, run):
         run.return_value.stdout = (
-            '-r-- 2026-09-15 12:00:00 100 /data/b file.root\n'
-            'dr-x 2026-09-15 12:00:00 0 /data/sub.root\n'
-            '-r-- 2026-09-15 12:00:00 100 /data/a.root\n'
-            '-r-- 2026-09-15 12:00:00 100 /data/a.root\n'
-            '-r-- 2026-09-15 12:00:00 100 /data/notes.txt\n'
+            '-rw------- ganis sf 117334351 2022-08-31 11:46:27 /data/b file.root\n'
+            'drwxr-xr-x ganis sf 0 2025-01-26 22:46:35 /data/.sys.v#.a.root\n'
+            '-rw------- ganis sf 117209126 2022-08-31 11:46:46 /data/a.root\n'
+            '-rw------- ganis sf 117209126 2022-08-31 11:46:46 /data/a.root\n'
+            '-rw------- ganis sf 100 2022-08-31 11:46:49 /data/notes.txt\n'
         )
         for host in ['storage.example.org:1094', 'eosproject.cern.ch']:
             self.assertEqual(resolve_inputs([f'root://{host}//data/']), [
