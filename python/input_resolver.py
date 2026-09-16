@@ -71,11 +71,11 @@ def _list_remote_files(path: str) -> list[str]:
     for line in result.stdout.splitlines():
         if not line.strip():
             continue
-        # xrdfs columns: permissions, date, time, size, absolute path.
-        # Limit splitting to preserve spaces in filenames.
-        permissions, _date, _time, _size, filename = line.split(maxsplit=4)
+        # Separate listing metadata from the absolute path, preserving spaces.
+        metadata, _separator, filename = line.partition('/')
+        filename = '/' + filename
 
-        if not permissions.startswith('-'):
+        if not metadata.lstrip().startswith('-'):
             continue
         if not filename.endswith('.root'):
             continue
