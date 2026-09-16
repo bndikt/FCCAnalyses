@@ -229,8 +229,9 @@ def _resolve_grid_sample_inputs(
         return resolve_directory(directory)
     else:
         raise GridSubmissionError(
-            f'Sample {sample_name!r} has no input source. '
-            'Set a per-sample source or Analysis.input_dir.'
+            f'Sample {sample_name!r} has no XRootD input source. '
+            'Set a per-sample source or Analysis.input_dir, or use '
+            '--lfn-input <list.txt> for DIRAC-registered input files.'
         )
 
     _require_grid_urls(input_urls)
@@ -240,7 +241,10 @@ def _resolve_grid_sample_inputs(
 def _require_grid_urls(input_urls: list[str]) -> None:
     if any(not url.startswith('root://') for url in input_urls):
         raise GridSubmissionError(
-            'Grid submission requires mounted EOS paths or root:// URLs.'
+            'In XRootD input mode, grid input files and directories must use '
+            'mounted EOS paths or root:// URLs; local input paths cannot be '
+            'staged in this mode. For DIRAC-registered input files, use '
+            '--lfn-input <list.txt> containing their LFNs.'
         )
 
 
@@ -335,7 +339,7 @@ def _load_analysis_class(analysis_script: Path, args: argparse.Namespace) -> Any
 
 
 def _validated_analysis_samples(analysis_class: Any) -> dict[str, dict[str, Any]]:
-    '''Select and validate samples, retaining the modern process-list alias.'''
+    '''Select and validate samples.'''
     if hasattr(analysis_class, 'samples'):
         provided_samples = analysis_class.samples
     elif hasattr(analysis_class, 'process_list'):

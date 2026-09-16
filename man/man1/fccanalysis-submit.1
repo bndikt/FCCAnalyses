@@ -94,7 +94,7 @@ Mounted \fI/eos/experiment/fcc/...\fR and \fI/eos/user/...\fR paths are
 converted to CERN XRootD URLs. Other EOS namespaces and non-CERN storage must
 use an explicit URL, for example
 \fBroot://storage.example.org//data/events.root\fR. URLs ending in
-\fI.root\fR name files; other URLs are treated as a directories.
+\fI.root\fR name files; other URLs are treated as directories.
 
 Grid jobs receive XRootD URLs, not files from the submitting machine. Local
 paths are therefore rejected in XRootD input mode. This does not apply to
@@ -106,6 +106,8 @@ Supplying
 selects LFN mode.
 The named text file must contain one absolute DIRAC logical file name per
 non-empty line.
+These are catalogue LFNs, not the physical paths or XRootD URLs used by a
+sample's \fIinput-file-list\fR.
 DIRAC stages each planned job's assigned input data into the worker directory,
 and the generated per-job input-file list refers to the staged filenames.
 Unless explicit grouping is requested, one LFN is assigned to each job.
