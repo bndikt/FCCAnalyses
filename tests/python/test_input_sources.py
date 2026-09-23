@@ -12,6 +12,40 @@ from parsers import setup_run_parser
 
 
 class InputSourceTest(unittest.TestCase):
+    def test_unset_sources_allow_fallback(self):
+        sources = ('input-dir', 'input-files', 'input-file-list')
+        for provided in ({}, dict.fromkeys(sources)):
+            with self.subTest(provided=provided):
+                sample = validate_sample_list({'events': provided})['events']
+                for source in sources:
+                    self.assertIsNone(sample[source])
+                self.assertEqual(
+                    get_sample_input_source(sample, '/inputs', 'campaign'),
+                    ('global-input-dir', '/inputs'),
+                )
+                self.assertEqual(
+                    get_sample_input_source(sample, None, 'campaign'),
+                    ('campaign', 'campaign'),
+                )
+                self.assertEqual(
+                    get_sample_input_source(sample, None, None),
+                    (None, None),
+                )
+
+    def test_explicit_source_prevents_fallback(self):
+        for source, value, expected in (
+                ('input-files', [], 'input-files'),
+                ('input-file-list', 'inputs.txt', 'input-file-list'),
+                ('input-dir', '/sample', 'sample-input-dir')):
+            with self.subTest(source=source):
+                sample = validate_sample_list({
+                    'events': {source: value},
+                })['events']
+                self.assertEqual(
+                    get_sample_input_source(sample, '/inputs', 'campaign'),
+                    (expected, value),
+                )
+
     def test_analysis_source_hierarchy(self):
         self.assertEqual(
             get_sample_input_source({'input-dir': None}, None, 'campaign'),
