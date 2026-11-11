@@ -158,7 +158,18 @@ class Job:
         if output_format is None:
             # Inspect the file rather than the dataframe, which may use the
             # podio data source for either input format.
-            with ROOT.TFile.Open(self._input_file_list[0]) as infile:
+            input_path = self._input_file_list[0]
+            try:
+                infile = ROOT.TFile.Open(input_path)
+            except OSError:
+                infile = None
+            if not infile or infile.IsZombie():
+                if infile:
+                    infile.Close()
+                LOGGER.error('Unable to open input file:\n%s\nAborting...',
+                             input_path)
+                sys.exit(3)
+            with infile:
                 key = infile.GetKey('events')
                 if not key:
                     LOGGER.error('Input file is missing "events" TTree or '
