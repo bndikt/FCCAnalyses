@@ -41,6 +41,11 @@ def main():
     parser.add_argument('--fccanalysis', required=True)
     args = parser.parse_args()
 
+    if (not hasattr(ROOT, 'RNTupleReader') or
+            not hasattr(ROOT.RDF, 'ESnapshotOutputFormat')):
+        print('Skipping: ROOT lacks the RNTuple reader or snapshot output format')
+        return 77
+
     check_events(args.ttree, 'ttree')
     check_events(args.rntuple, 'rntuple')
 
