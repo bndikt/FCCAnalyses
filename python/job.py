@@ -277,6 +277,7 @@ class Job:
             if self._output_format == 'rntuple':
                 options.fOutputFormat = ROOT.RDF.ESnapshotOutputFormat.kRNTuple
             elif hasattr(ROOT.RDF, 'ESnapshotOutputFormat'):
+                # Preserve TTree output if ROOT's default format changes.
                 options.fOutputFormat = ROOT.RDF.ESnapshotOutputFormat.kTTree
 
             final_dframe.Snapshot(
