@@ -1,4 +1,9 @@
 # Low level EDM4hep access
+add_generic_test(
+  integration_rntuple_compatibility
+  "python ${CMAKE_SOURCE_DIR}/tests/integration/test_rntuple_compatibility.py --fccanalysis ${CMAKE_SOURCE_DIR}/bin/fccanalysis --ttree https://fccanalyses.web.cern.ch/CI/samples/rntuple-compatibility/edm4hep_reco_ttree.root --rntuple https://fccanalyses.web.cern.ch/CI/samples/rntuple-compatibility/edm4hep_reco_rntuple.root"
+)
+
 add_executable(integration_low_level_edm4hep
                ${CMAKE_SOURCE_DIR}/tests/integration/low_level_edm4hep.cxx
 )
